@@ -1,0 +1,133 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-canvas: #f6f6f8;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f2f5;
+  --color-line: #e3e4e9;
+  --color-line-strong: #cfd1d9;
+
+  --color-ink: #14161c;
+  --color-ink-muted: #5b6270;
+  --color-ink-subtle: #878d99;
+
+  --color-accent: #4f46e5;
+  --color-accent-strong: #4338ca;
+  --color-accent-soft: #eef0ff;
+
+  --color-brand: #1d4ed8;
+  --color-brand-strong: #1b45bf;
+
+  --color-danger: #d92d20;
+  --color-danger-soft: #fef3f2;
+
+  --font-sans:
+    'Nunito Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    sans-serif;
+  --font-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+
+  --radius-control: 10px;
+  --radius-card: 14px;
+
+  --container-content: 1180px;
+}
+
+@utility shadow-card {
+  box-shadow: var(--app-shadow-card);
+}
+
+@utility shadow-float {
+  box-shadow: var(--app-shadow-float);
+}
+
+:root {
+  --app-shadow-card: 0 1px 2px rgb(16 18 25 / 6%), 0 1px 1px rgb(16 18 25 / 4%);
+  --app-shadow-float: 0 18px 40px -24px rgb(16 18 25 / 32%);
+}
+
+.dark {
+  --color-canvas: #0a0b0f;
+  --color-surface: #12141a;
+  --color-surface-muted: #1a1d25;
+  --color-line: #262a33;
+  --color-line-strong: #343946;
+
+  --color-ink: #eceef2;
+  --color-ink-muted: #a2a9b8;
+  --color-ink-subtle: #767e8f;
+
+  --color-accent: #5b5bf0;
+  --color-accent-strong: #7c7dfa;
+  --color-accent-soft: #1c1e33;
+
+  --color-brand: #2f5ae6;
+  --color-brand-strong: #4570f5;
+
+  --color-danger: #f97066;
+  --color-danger-soft: #2a1512;
+
+  --app-shadow-card: 0 1px 2px rgb(0 0 0 / 40%);
+  --app-shadow-float: 0 18px 40px -24px rgb(0 0 0 / 70%);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    min-height: 100dvh;
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    line-height: 1.2;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: var(--color-accent-soft);
+    color: var(--color-accent-strong);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
