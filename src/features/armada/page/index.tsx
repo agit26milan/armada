@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { DropdownOption } from "@/shared/components/ui/dropdown";
 import { Dropdown } from "@/shared/components/ui/dropdown";
@@ -18,7 +18,9 @@ import { ArmadaCard } from "../components/armada-card";
 import ArmadaEmpty from "../components/armada-empty";
 import ArmadaError from "../components/armada-error";
 import ArmadaLoading from "../components/armada-loading";
+import ArmadaOffline, { ArmadaOfflineNotice } from "../components/armada-offline";
 import type { Route, Stop, Vehicle } from "../types/armada";
+import { useOnlineStatus } from "@/shared/hooks/use-online-status";
 import { usePagination } from "@/shared/hooks/use-pagination";
 import { ArmadaModal } from "../components/armada-detail";
 
@@ -61,6 +63,7 @@ const ArmadaPage = () => {
   } = useSearch({ from: "/" });
   const navigate = useNavigate();
   const { parseOffset } = usePagination();
+  const isOnline = useOnlineStatus();
   const page = Math.max(0, Math.floor(requestedPage));
   const [armadaModalOpen, setArmadaModalOpen] = useState(false);
   const [vehicleId, setVehicleId] = useState('');
@@ -78,6 +81,8 @@ const ArmadaPage = () => {
     }),
   );
   const vehicles = vehiclesQuery.data?.data ?? EMPTY_VEHICLES;
+  const isOffline = !isOnline || vehiclesQuery.fetchStatus === "paused";
+  const isPageUnavailable = isOffline && (vehiclesQuery.isPending || vehiclesQuery.isPlaceholderData);
 
   const routesQuery = useQuery(routesQueryOptions());
   const routesInfiniteQuery = useInfiniteQuery({
@@ -268,6 +273,26 @@ const ArmadaPage = () => {
     updateSearch({ page: 0, route: undefined, trip: undefined }, true);
   }, [updateSearch]);
 
+  const autoRetriedRateLimitRef = useRef(false);
+  const handleRateLimitCooldownEnd = useCallback(() => {
+    if (autoRetriedRateLimitRef.current) {
+      return;
+    }
+
+    autoRetriedRateLimitRef.current = true;
+    void vehiclesQuery.refetch();
+  }, [vehiclesQuery.refetch]);
+
+  useEffect(() => {
+    if (
+      vehiclesQuery.isFetched &&
+      !vehiclesQuery.isFetching &&
+      !vehiclesQuery.isError
+    ) {
+      autoRetriedRateLimitRef.current = false;
+    }
+  }, [vehiclesQuery.isError, vehiclesQuery.isFetched, vehiclesQuery.isFetching]);
+
   useEffect(() => {
     if (vehicles.length === 0 && page > lastPage) {
       updateSearch({ page: lastPage }, true);
@@ -311,7 +336,13 @@ const ArmadaPage = () => {
   return (
     <>
       {filterBar}
-      {vehiclesQuery.isPending || vehiclesQuery.isFetching ? (
+      {isOffline && !isPageUnavailable ? <ArmadaOfflineNotice /> : null}
+      {isPageUnavailable ? (
+        <ArmadaOffline
+          onRetry={() => void vehiclesQuery.refetch()}
+          isFetching={vehiclesQuery.isFetching}
+        />
+      ) : vehiclesQuery.isPending || vehiclesQuery.isFetching ? (
         <section
           aria-busy="true"
           aria-label="Loading fleet data"
@@ -325,6 +356,7 @@ const ArmadaPage = () => {
         <ArmadaError
           error={vehiclesQuery.error}
           onRetry={() => void vehiclesQuery.refetch()}
+          onCooldownEnd={handleRateLimitCooldownEnd}
           isFetching={vehiclesQuery.isFetching}
         />
       ) : vehicles.length > 0 ? (
@@ -345,7 +377,8 @@ const ArmadaPage = () => {
       ) : (
         <ArmadaEmpty hasFilters={hasFilters} onClearFilters={handleClearFilters} />
       )}
-      {vehiclesQuery.isPending ||
+      {isPageUnavailable ||
+      vehiclesQuery.isPending ||
       vehiclesQuery.isError ||
       vehiclesQuery.isFetching ? null : (
         <div className="mt-6">

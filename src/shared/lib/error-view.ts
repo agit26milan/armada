@@ -20,12 +20,14 @@ export function isRateLimitError(error: unknown): boolean {
   return error instanceof ApiError && error.status === 429
 }
 
-export function formatRetryDelay(milliseconds?: number): number | null {
-  if (milliseconds === undefined || !Number.isFinite(milliseconds)) {
+const DEFAULT_RATE_LIMIT_COOLDOWN_MS = 15_000
+
+export function getRateLimitCooldownMs(error: unknown): number | null {
+  if (!(error instanceof ApiError) || error.status !== 429) {
     return null
   }
 
-  return Math.max(1, Math.ceil(milliseconds / 1000))
+  return error.retryAfterMs ?? DEFAULT_RATE_LIMIT_COOLDOWN_MS
 }
 
 export function getErrorView(error: unknown, subject: string): ErrorView {
@@ -39,14 +41,10 @@ export function getErrorView(error: unknown, subject: string): ErrorView {
 
   if (error instanceof ApiError) {
     if (error.status === 429) {
-      const seconds = formatRetryDelay(error.retryAfterMs)
-
       return {
         title: 'Too many requests',
         description:
-          seconds === null
-            ? 'The MBTA API allows about 20 requests per minute. Wait a moment, then try again.'
-            : `The MBTA API allows about 20 requests per minute. Wait ${seconds} seconds, then try again.`,
+          'The MBTA API allows about 20 requests per minute. Try again once the countdown finishes.',
         canRetry: true,
       }
     }

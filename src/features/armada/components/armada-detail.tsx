@@ -840,7 +840,6 @@ const ArmadaDetailBase = ({ open, onClose, vehicleId }: ArmadaDetailProps) => {
       }
       footerNote={
         <>
-          Data from MBTA API v3 · ID{" "}
           <span className="font-mono text-[11px]">{vehicle?.id ?? "—"}</span>
         </>
       }
