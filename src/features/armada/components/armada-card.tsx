@@ -64,7 +64,6 @@ function ArmadaCardBase({ vehicle, route, stop, className, onDetailClick }: Arma
 
   const status = getStatusView(attributes.current_status);
   const occupancy = getOccupancyView(attributes.occupancy_status);
-
   return (
     <article
       onClick={onDetailClick}
