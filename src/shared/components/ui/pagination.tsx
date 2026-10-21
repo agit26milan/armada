@@ -63,6 +63,7 @@ export interface PaginationProps {
   onPageSizeChange?: (pageSize: number) => void
   pageSizeOptions?: readonly number[]
   itemLabel?: string
+  isTotalPending?: boolean
   className?: string
 }
 
@@ -74,6 +75,7 @@ function PaginationBase({
   onPageSizeChange,
   pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
   itemLabel = 'data',
+  isTotalPending = false,
   className,
 }: PaginationProps) {
   const selectId = useId()
@@ -150,7 +152,15 @@ function PaginationBase({
           <span className="font-bold text-ink tabular-nums">
             {formatNumber(firstItem)}–{formatNumber(lastItem)}
           </span>{' '}
-          of <span className="font-bold text-ink tabular-nums">{formatNumber(totalItems)}</span>{' '}
+          of{' '}
+          {isTotalPending ? (
+            <span
+              aria-label="Loading total"
+              className="inline-block h-[11px] w-9 animate-pulse rounded bg-line align-middle"
+            />
+          ) : (
+            <span className="font-bold text-ink tabular-nums">{formatNumber(totalItems)}</span>
+          )}{' '}
           {itemLabel}
         </p>
 
@@ -165,7 +175,7 @@ function PaginationBase({
 
       <div className="order-2 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-2">
         {onPageSizeChange ? (
-          <div className="hidden items-center gap-2 sm:flex">
+          <div className="flex items-center justify-between gap-2 sm:justify-start">
             <label htmlFor={selectId} className="whitespace-nowrap">
               Rows per page
             </label>
@@ -174,7 +184,7 @@ function PaginationBase({
                 id={selectId}
                 value={normalizedPageSize}
                 onChange={handlePageSizeChange}
-                className="appearance-none rounded-md border border-line bg-surface pr-5 pl-2 text-[11px] font-semibold text-ink shadow-card transition-colors hover:bg-surface-muted focus:outline-none"
+                className="h-11 w-[84px] appearance-none rounded-[10px] border border-line bg-surface pr-5 pl-2.5 text-[13px] font-semibold text-ink shadow-card transition-colors hover:bg-surface-muted focus:outline-none sm:h-[22px] sm:w-auto sm:rounded-md sm:pl-2 sm:text-[11px]"
               >
                 {sizeOptions.map((size) => (
                   <option key={size} value={size}>

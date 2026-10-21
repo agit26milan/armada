@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useId, useRef, useState } from 'react'
-import type { KeyboardEvent, MouseEvent, PointerEvent, ReactNode, RefObject } from 'react'
+import type { MouseEvent, PointerEvent, ReactNode, RefObject } from 'react'
 import { createPortal } from 'react-dom'
 
 import { CloseIcon } from '@/shared/components/icons'
@@ -17,6 +17,12 @@ const FOCUSABLE_SELECTOR = [
   'textarea:not([disabled])',
   '[tabindex]:not([tabindex="-1"])',
 ].join(',')
+
+function getFocusableElements(container: HTMLElement): HTMLElement[] {
+  return [...container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)].filter(
+    (node) => node.offsetParent !== null && !node.hasAttribute('inert'),
+  )
+}
 
 const OVERLAY_CLASSES =
   'fixed inset-0 z-50 flex items-end justify-center overflow-hidden overscroll-contain bg-black/50 backdrop-blur-[2px] transition-opacity duration-200 motion-reduce:transition-none sm:items-center sm:overflow-y-auto sm:p-6'
@@ -155,21 +161,28 @@ function ModalBase({
       return
     }
 
-    const previous = document.activeElement
-    previousFocusRef.current = previous instanceof HTMLElement ? previous : null
+    const active = document.activeElement
+    previousFocusRef.current =
+      active instanceof HTMLElement && active !== document.body ? active : null
+  }, [open])
 
-    const frame = requestAnimationFrame(() => {
-      const target = initialFocusRef?.current ?? panelRef.current
-
-      target?.focus()
-    })
-
-    return () => {
-      cancelAnimationFrame(frame)
-      previousFocusRef.current?.focus()
-      previousFocusRef.current = null
+  useEffect(() => {
+    if (!open || !mounted) {
+      return
     }
-  }, [initialFocusRef, open])
+
+    const panel = panelRef.current
+
+    if (!panel) {
+      return
+    }
+
+    const target = initialFocusRef?.current ?? panel
+
+    if (!panel.contains(document.activeElement)) {
+      target.focus({ preventScroll: true })
+    }
+  }, [initialFocusRef, mounted, open])
 
   useEffect(() => {
     if (!mounted) {
@@ -192,6 +205,38 @@ function ModalBase({
   }, [mounted])
 
   useEffect(() => {
+    if (!mounted) {
+      return
+    }
+
+    const appRoot = document.getElementById('root')
+    const alreadyInert = appRoot?.inert ?? false
+
+    if (appRoot) {
+      appRoot.inert = true
+    }
+
+    return () => {
+      if (appRoot) {
+        appRoot.inert = alreadyInert
+      }
+    }
+  }, [mounted])
+
+  useEffect(() => {
+    if (mounted) {
+      return
+    }
+
+    const previous = previousFocusRef.current
+    previousFocusRef.current = null
+
+    if (previous?.isConnected) {
+      previous.focus({ preventScroll: true })
+    }
+  }, [mounted])
+
+  useEffect(() => {
     if (!open || !closeOnEscape) {
       return
     }
@@ -208,6 +253,56 @@ function ModalBase({
     return () => document.removeEventListener('keydown', handleEscape)
   }, [closeOnEscape, onClose, open])
 
+  useEffect(() => {
+    if (!mounted) {
+      return
+    }
+
+    const handleTab = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== 'Tab') {
+        return
+      }
+
+      const panel = panelRef.current
+
+      if (!panel) {
+        return
+      }
+
+      const focusables = getFocusableElements(panel)
+
+      if (focusables.length === 0) {
+        event.preventDefault()
+        panel.focus({ preventScroll: true })
+
+        return
+      }
+
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+      const active = document.activeElement
+
+      if (!panel.contains(active)) {
+        event.preventDefault()
+        ;(event.shiftKey ? last : first).focus()
+
+        return
+      }
+
+      if (event.shiftKey && active === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleTab, true)
+
+    return () => document.removeEventListener('keydown', handleTab, true)
+  }, [mounted])
+
   const handleOverlayPointerDown = useCallback(
     (event: MouseEvent<HTMLDivElement>) => {
       if (closeOnOverlayClick && event.target === event.currentTarget) {
@@ -216,44 +311,6 @@ function ModalBase({
     },
     [closeOnOverlayClick, onClose],
   )
-
-  const handlePanelKeyDown = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'Tab') {
-      return
-    }
-
-    const panel = panelRef.current
-
-    if (!panel) {
-      return
-    }
-
-    const focusables = [...panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)].filter(
-      (node) => node.offsetParent !== null,
-    )
-
-    if (focusables.length === 0) {
-      event.preventDefault()
-
-      return
-    }
-
-    const first = focusables[0]
-    const last = focusables[focusables.length - 1]
-    const active = document.activeElement
-
-    if (event.shiftKey && (active === first || !panel.contains(active))) {
-      event.preventDefault()
-      last.focus()
-
-      return
-    }
-
-    if (!event.shiftKey && active === last) {
-      event.preventDefault()
-      first.focus()
-    }
-  }, [])
 
   const handleDragStart = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
@@ -345,7 +402,6 @@ function ModalBase({
         data-state={visible ? 'open' : 'closed'}
         data-variant={isSheet ? 'sheet' : 'dialog'}
         tabIndex={-1}
-        onKeyDown={handlePanelKeyDown}
         style={dragOffset > 0 ? { transform: `translateY(${dragOffset}px)` } : undefined}
         className={cn(
           PANEL_CLASSES,

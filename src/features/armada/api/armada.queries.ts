@@ -1,6 +1,6 @@
 import { infiniteQueryOptions, keepPreviousData, queryOptions } from '@tanstack/react-query'
 
-import { getRoutes, getStops, getTrip, getVehicleDetail, getVehicles } from './armada.api'
+import { getRoutes, getStops, getRouteTrips, getTrip, getVehicleDetail, getVehicles } from './armada.api'
 import type { GetStopQuery, GetTripQuery, GetVehicleQuery } from '../types/armada'
 
 export const vehicleKeys = {
@@ -30,7 +30,7 @@ export const tripKeys = {
   lists: () => [...tripKeys.all, 'list'] as const,
   list: (query: GetTripQuery) => [...tripKeys.lists(), query] as const,
   detail: (tripId: string) => [...tripKeys.all, 'detail', tripId] as const,
-  infinite: (query: GetTripQuery) => [...tripKeys.all, 'infinite', query] as const,
+  active: (route: string) => [...tripKeys.all, 'active', route] as const,
 }
 
 export const vehiclesQueryOptions = (query: GetVehicleQuery = {}) =>
@@ -96,16 +96,13 @@ export const tripQueryOptions = (tripId: string) =>
     enabled: tripId.length > 0,
   })
 
-export const tripsInfiniteQueryOptions = (query: GetTripQuery = {}) =>
-  infiniteQueryOptions({
-    queryKey: tripKeys.infinite(query),
-    queryFn: ({ pageParam, signal }) => getTrip({ ...query, offset: pageParam }, signal),
-    initialPageParam: 0,
-    getNextPageParam: (lastPage, allPages) =>
-      lastPage.links?.next ? allPages.length * (query.limit ?? 20) : undefined,
-    staleTime: 10 * 60_000,
+export const routeTripsQueryOptions = (route?: string) =>
+  queryOptions({
+    queryKey: tripKeys.active(route ?? ''),
+    queryFn: ({ signal }) => getRouteTrips(route ?? '', signal),
+    staleTime: 15_000,
+    enabled: route !== undefined,
   })
-
 
 export const detailVehicleQueryOptions = (vehicleId: string) =>
   queryOptions({

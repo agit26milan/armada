@@ -7,10 +7,10 @@ import { Dropdown } from "@/shared/components/ui/dropdown";
 import { Pagination } from "@/shared/components/ui/pagination";
 
 import {
+  routeTripsQueryOptions,
   routesInfiniteQueryOptions,
   routesQueryOptions,
   stopsQueryOptions,
-  tripsInfiniteQueryOptions,
   tripsQueryOptions,
   vehiclesQueryOptions,
 } from "../api/armada.queries";
@@ -84,13 +84,7 @@ const ArmadaPage = () => {
     ...routesInfiniteQueryOptions(ROUTE_PAGE_SIZE),
   });
 
-  const tripsInfiniteQuery = useInfiniteQuery({
-    ...tripsInfiniteQueryOptions({
-      limit: ROUTE_PAGE_SIZE,
-      route: routeFilter,
-    }),
-    enabled: routeFilter !== undefined,
-  });
+  const activeTripsQuery = useQuery(routeTripsQueryOptions(routeFilter));
 
   const selectedTripsQuery = useQuery({
     ...tripsQueryOptions({ id: selectedTrips.join(",") }),
@@ -164,14 +158,12 @@ const ArmadaPage = () => {
       pushTrip(item.id, item.attributes.headsign);
     }
 
-    for (const pageData of tripsInfiniteQuery.data?.pages ?? []) {
-      for (const item of pageData.data) {
-        pushTrip(item.id, item.attributes.headsign);
-      }
+    for (const item of activeTripsQuery.data?.included ?? []) {
+      pushTrip(item.id, item.attributes.headsign);
     }
 
     return items;
-  }, [selectedTripsQuery.data, tripsInfiniteQuery.data]);
+  }, [activeTripsQuery.data, selectedTripsQuery.data]);
 
   const stopsById = useMemo(() => {
     const map = new Map<string, Stop>();
@@ -219,10 +211,21 @@ const ArmadaPage = () => {
 
   const pageOffset = page * pageSize;
   const lastOffset = parseOffset(vehiclesQuery.data?.links?.last);
-  const totalItems =
-    lastOffset === null || lastOffset === pageOffset
-      ? pageOffset + vehicles.length
-      : lastOffset + pageSize;
+  const isOnLastPage = lastOffset === null || lastOffset === pageOffset;
+  const lastPageVehiclesQuery = useQuery({
+    ...vehiclesQueryOptions({
+      limit: pageSize,
+      offset: lastOffset ?? pageOffset,
+      route: routeFilter,
+      trip: selectedTrips.join(","),
+    }),
+    enabled: !isOnLastPage,
+  });
+  const lastPageCount = lastPageVehiclesQuery.data?.data.length;
+  const isTotalPending = !isOnLastPage && lastPageCount === undefined;
+  const totalItems = isOnLastPage
+    ? pageOffset + vehicles.length
+    : lastOffset + (lastPageCount ?? pageSize);
   const lastPage =
     lastOffset === null ? page : Math.floor(lastOffset / pageSize);
 
@@ -261,11 +264,17 @@ const ArmadaPage = () => {
     [updateSearch],
   );
 
+  const handleClearFilters = useCallback(() => {
+    updateSearch({ page: 0, route: undefined, trip: undefined }, true);
+  }, [updateSearch]);
+
   useEffect(() => {
     if (vehicles.length === 0 && page > lastPage) {
       updateSearch({ page: lastPage }, true);
     }
   }, [lastPage, page, updateSearch, vehicles.length]);
+
+  const hasFilters = selectedRoutes.length > 0 || selectedTrips.length > 0;
 
   const filterBar = (
     <div className="mb-4 space-y-3 sm:flex sm:items-center sm:justify-end sm:gap-3 sm:space-y-0">
@@ -292,10 +301,7 @@ const ArmadaPage = () => {
         onChange={handleTripChange}
         placeholder={routeFilter ? "All trips" : "Select a route first"}
         emptyText="No trips found"
-        isLoading={tripsInfiniteQuery.isPending}
-        isLoadingMore={tripsInfiniteQuery.isFetchingNextPage}
-        hasMore={tripsInfiniteQuery.hasNextPage}
-        onLoadMore={() => void tripsInfiniteQuery.fetchNextPage()}
+        isLoading={activeTripsQuery.isPending}
         disabled={routeFilter === undefined}
         multipleSelect={true}
       />
@@ -317,6 +323,7 @@ const ArmadaPage = () => {
         </section>
       ) : vehiclesQuery.isError ? (
         <ArmadaError
+          error={vehiclesQuery.error}
           onRetry={() => void vehiclesQuery.refetch()}
           isFetching={vehiclesQuery.isFetching}
         />
@@ -336,7 +343,7 @@ const ArmadaPage = () => {
           ))}
         </section>
       ) : (
-        <ArmadaEmpty />
+        <ArmadaEmpty hasFilters={hasFilters} onClearFilters={handleClearFilters} />
       )}
       {vehiclesQuery.isPending ||
       vehiclesQuery.isError ||
@@ -347,6 +354,7 @@ const ArmadaPage = () => {
             pageSize={pageSize}
             totalItems={totalItems}
             itemLabel="vehicles"
+            isTotalPending={isTotalPending}
             onPageChange={handlePageChange}
             onPageSizeChange={handlePageSizeChange}
           />

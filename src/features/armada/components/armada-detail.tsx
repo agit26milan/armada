@@ -6,6 +6,7 @@ import { ArrowUpRightIcon } from "@/shared/components/icons";
 import { Button } from "@/shared/components/ui/button";
 import { Modal } from "@/shared/components/ui/modal";
 import { cn } from "@/shared/lib/cn";
+import { getErrorView } from "@/shared/lib/error-view";
 
 import {
   detailVehicleQueryOptions,
@@ -685,30 +686,34 @@ function DetailSkeleton() {
 }
 
 function DetailError({
-  message,
+  error,
   onRetry,
   isRetrying,
 }: {
-  message: string;
+  error: unknown;
   onRetry: () => void;
   isRetrying: boolean;
 }) {
+  const view = getErrorView(error, "vehicle detail")
+
   return (
     <div
       role="alert"
       className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-line-strong px-4 py-12 text-center"
     >
-      <p className="text-[13px] font-bold text-ink">Failed to load vehicle detail</p>
-      <p className="max-w-sm text-[11.5px] text-ink-muted">{message}</p>
-      <Button
-        variant="secondary"
-        size="sm"
-        className="mt-1"
-        isLoading={isRetrying}
-        onClick={onRetry}
-      >
-        Try again
-      </Button>
+      <p className="text-[13px] font-bold text-ink">{view.title}</p>
+      <p className="max-w-sm text-[11.5px] text-ink-muted">{view.description}</p>
+      {view.canRetry ? (
+        <Button
+          variant="secondary"
+          size="sm"
+          className="mt-1"
+          isLoading={isRetrying}
+          onClick={onRetry}
+        >
+          Try again
+        </Button>
+      ) : null}
     </div>
   );
 }
@@ -865,11 +870,7 @@ const ArmadaDetailBase = ({ open, onClose, vehicleId }: ArmadaDetailProps) => {
         />
       ) : vehicleQuery.isError ? (
         <DetailError
-          message={
-            vehicleQuery.error instanceof Error
-              ? vehicleQuery.error.message
-              : "Something went wrong while requesting the vehicle."
-          }
+          error={vehicleQuery.error}
           isRetrying={vehicleQuery.isFetching}
           onRetry={() => void vehicleQuery.refetch()}
         />
