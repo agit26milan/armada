@@ -131,11 +131,3 @@ Data yang butuh parameter besar (daftar rute dan trip di filter) memakai `useInf
 ### Menambah fitur baru
 
 Buat folder `src/features/<nama>` dengan isi minimal `page/`, `components/`, `api/`, `types/`, dan `index.ts` sebagai pintu keluar. Tambahkan rute di `src/routes/` dan, kalau perlu data server, buat `*.queries.ts` berisi query key plus `queryOptions` seperti di `armada.queries.ts`. Komponen yang dipakai lebih dari satu fitur naik ke `shared/`.
-
-## Hal yang sering bikin bingung
-
-- Endpoint `/vehicles/{id}` mengembalikan **satu objek** (`{ data: {...} }`), sedangkan `/vehicles` mengembalikan array. Karena itu ada dua tipe berbeda, `VehicleDetailResponse` dan `VehicleListResponse`.
-- Jumlah total halaman tidak dikirim langsung oleh API. Pagination menebaknya dari link `links.last` (`page[offset]` terakhir), lihat `usePagination` di `shared/hooks`.
-- Filter `trip` disimpan sebagai string berkoma di URL, lalu dipecah lagi jadi array. Ini sengaja supaya format URL tetap sederhana.
-- Tile OSM dipakai untuk kebutuhan demo. Untuk produksi dengan trafik tinggi, ganti `getTileUrl()` di `lib/map-projection.ts` ke penyedia tile berbayar, karena kebijakan pemakaian OSM membatasi trafik berat.
-- `routeTree.gen.ts` dihasilkan plugin TanStack Router saat dev/build. Kalau isinya aneh setelah menambah file rute, jalankan ulang dev server.
