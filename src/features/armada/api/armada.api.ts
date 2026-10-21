@@ -7,6 +7,7 @@ import type {
   GetTripQuery,
   GetVehicleQuery,
   RouteListResponse,
+  RouteTripsResponse,
   StopListResponse,
   TripListResponse,
   VehicleDetailResponse,
@@ -196,4 +197,18 @@ export function getVehicleDetail(
     `/vehicles/${encodeURIComponent(vehicleId)}`,
     { signal },
   );
+}
+
+export function getRouteTrips(
+  route: string,
+  signal?: AbortSignal,
+): Promise<RouteTripsResponse> {
+  return httpRequest<RouteTripsResponse>("/vehicles", {
+    query: {
+      "filter[route]": route,
+      include: "trip",
+      "page[limit]": 100,
+    },
+    signal,
+  });
 }

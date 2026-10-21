@@ -2,11 +2,13 @@ import { env } from '@/shared/lib/env'
 
 export class ApiError extends Error {
   readonly status: number
+  readonly retryAfterMs?: number
 
-  constructor(message: string, status: number, options?: ErrorOptions) {
+  constructor(message: string, status: number, retryAfterMs?: number, options?: ErrorOptions) {
     super(message, options)
     this.name = 'ApiError'
     this.status = status
+    this.retryAfterMs = retryAfterMs
   }
 }
 
@@ -30,8 +32,15 @@ function isQueryScalar(value: unknown): value is QueryValue {
   )
 }
 
+function joinPath(base: string, path: string): string {
+  const baseUrl = base.endsWith('/') ? base : `${base}/`
+  const relative = path.startsWith('/') ? path.slice(1) : path
+
+  return new URL(relative, baseUrl).toString()
+}
+
 function buildUrl(path: string, query?: object): string {
-  const url = new URL(path, env.apiBaseUrl)
+  const url = new URL(joinPath(env.apiBaseUrl, path))
 
   for (const [key, value] of Object.entries(query ?? {})) {
     if (value === undefined || value === null || value === '') {
@@ -58,6 +67,22 @@ function buildUrl(path: string, query?: object): string {
   return url.toString()
 }
 
+function parseRetryAfter(value: string | null): number | undefined {
+  if (value === null || value.trim() === '') {
+    return undefined
+  }
+
+  const seconds = Number(value)
+
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.round(seconds * 1000)
+  }
+
+  const date = Date.parse(value)
+
+  return Number.isFinite(date) ? Math.max(0, date - Date.now()) : undefined
+}
+
 export async function httpRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { body, query, headers, ...init } = options
 
@@ -72,7 +97,11 @@ export async function httpRequest<T>(path: string, options: RequestOptions = {})
   })
 
   if (!response.ok) {
-    throw new ApiError(`Request failed with status ${response.status}`, response.status)
+    throw new ApiError(
+      `Request failed with status ${response.status}`,
+      response.status,
+      parseRetryAfter(response.headers.get('Retry-After')),
+    )
   }
 
   if (response.status === 204) {

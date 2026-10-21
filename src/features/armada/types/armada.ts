@@ -4,7 +4,7 @@ export interface VehicleAttributes {
   current_status: string
   current_stop_sequence: number
   direction_id: number
-  label: string
+  label: string | null
   latitude: number
   longitude: number
   occupancy_status: string | null
@@ -103,6 +103,18 @@ export interface ResourceListLinks {
 
 export interface VehicleListResponse {
   data: Vehicle[]
+  links?: ResourceListLinks
+}
+
+export interface TripSummary {
+  attributes: TripAttributes
+  id: string
+  type: string
+}
+
+export interface RouteTripsResponse {
+  data: Vehicle[]
+  included?: TripSummary[]
   links?: ResourceListLinks
 }
 

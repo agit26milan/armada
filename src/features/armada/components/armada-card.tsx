@@ -1,4 +1,5 @@
 import { memo } from "react";
+import type { KeyboardEvent } from "react";
 
 import { ArrowUpRightIcon } from "@/shared/components/icons";
 import { cn } from "@/shared/lib/cn";
@@ -64,13 +65,27 @@ function ArmadaCardBase({ vehicle, route, stop, className, onDetailClick }: Arma
 
   const status = getStatusView(attributes.current_status);
   const occupancy = getOccupancyView(attributes.occupancy_status);
+  const vehicleLabel = attributes.label || id;
+  const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    event.preventDefault();
+    onDetailClick?.();
+  };
 
   return (
     <article
+      role="button"
+      tabIndex={0}
+      aria-label={`Vehicle ${vehicleLabel}. Open details.`}
       onClick={onDetailClick}
+      onKeyDown={onDetailClick ? handleKeyDown : undefined}
       className={cn(
         "flex cursor-pointer flex-col gap-[7px] rounded-xl border border-line bg-surface px-3 py-2.5 shadow-card",
         "dark:border-slate-800 dark:bg-slate-900",
+        "focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none",
         className,
       )}
     >
@@ -103,7 +118,7 @@ function ArmadaCardBase({ vehicle, route, stop, className, onDetailClick }: Arma
 
       <div className="flex items-baseline justify-between gap-3">
         <p className="truncate text-[19px] leading-none font-bold tracking-[-0.015em] text-ink tabular-nums dark:text-white">
-          {attributes.label}
+          {vehicleLabel}
         </p>
         <p className="shrink-0 truncate text-[10px] text-ink-subtle tabular-nums">
           {id}
